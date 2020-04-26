@@ -1,0 +1,284 @@
+---
+title: "project"
+author: "Andrew Tu"
+date: "4/22/2020"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r cars}
+library(tidyverse)
+library(lubridate)
+library(ggplot2)
+library(gridExtra)
+
+cases.raw<-read.csv("daily-cases-covid-19.csv") 
+cases = cases.raw %>%
+  mutate(confirmed = cases.raw$Daily.confirmed.cases..cases.)%>%
+  mutate(date = mdy(Date))%>%
+  filter(date > "2020-02-01")%>%
+  #filter(date < "2020-04-05")%>%
+  select(date, confirmed, Code)%>%
+  mutate(Code = as.character(Code))
+
+
+tests.raw <- read.csv("full-list-covid-19-tests-per-day.csv")
+tests = tests.raw %>%
+  mutate(tested = tests.raw$Daily.change.in.total.tests )%>%
+  mutate(date = mdy(Date))%>%
+  filter(date > "2020-02-01")%>%
+  #filter(date < "2020-04-05")%>%
+  select(date, tested, Code) %>%
+  mutate(Code = as.character(Code))
+
+
+data = full_join(cases,tests)
+#USA
+data.usa = data %>%
+  filter(Code == "USA") %>%
+  select(date, confirmed, tested)%>%
+  arrange(date) %>%
+  mutate(cumulconfirmed = cumsum(confirmed))%>%
+  mutate(growth = (confirmed/cumulconfirmed)*100)%>%
+  mutate(cases.per.test = confirmed/tested) %>%
+  filter(growth < 100)
+
+
+par(mfrow=c(2,2))
+
+plot(data.usa$date, log(data.usa$confirmed/data.usa$tested),pch=3,xlab = "Date"
+     ,ylab = "log of cases per test in the US", main = "USA")
+
+##Italy
+
+data.ita = data %>%
+  filter(Code == "ITA") %>%
+  select(date, confirmed, tested)%>%
+  arrange(date) %>%
+  mutate(cumulconfirmed = cumsum(confirmed))%>%
+  mutate(growth = (confirmed/cumulconfirmed)*100)%>%
+  mutate(cases.per.test = confirmed/tested) %>%
+  filter(growth < 100)
+
+plot(data.ita$date, log(data.ita$confirmed/data.ita$tested),pch=3,xlab = "Date"
+     ,ylab = "log of cases per test in Italy", main = "Italy")
+
+## south korea
+data.kor = data %>%
+  filter(Code == "KOR") %>%
+  select(date, confirmed, tested)%>%
+  arrange(date) %>%
+  mutate(cumulconfirmed = cumsum(confirmed))%>%
+  mutate(growth = (confirmed/cumulconfirmed)*100)%>%
+  mutate(cases.per.test = confirmed/tested) %>%
+  filter(growth < 100)
+
+
+
+plot(data.kor$date, log(data.kor$confirmed/data.kor$tested),pch=3,xlab = "Date"
+     ,ylab = "log of cases per test in South Korea", main = "South Korea")
+# uk
+data.gbr = data %>%
+  filter(Code == "GBR") %>%
+  select(date, confirmed, tested)
+
+
+plot(data.gbr$date, log(data.gbr$confirmed/data.gbr$tested),pch=3,xlab = "Date"
+     ,ylab = "log of cases per test in the UK", main = "United Kingdom")
+
+# israel
+data.isr = data %>%
+  filter(Code == "ISR") %>%
+  select(date, confirmed, tested)
+
+
+
+plot(data.isr$date, log(data.isr$confirmed/data.isr$tested),pch=3,xlab = "Date"
+     ,ylab = "log of cases per test in Israel", main = "Israel")
+
+#turkey
+data.tur = data %>%
+  filter(Code == "TUR") %>%
+  select(date, confirmed, tested)
+
+
+plot(data.tur$date, log(data.tur$confirmed/data.tur$tested),pch=3,xlab = "Date"
+     ,ylab = "log of cases per test in Turkey", main = "Turkey")
+
+#india
+data.aut = data %>%
+  filter(Code == "AUT") %>%
+  select(date, confirmed, tested)%>%
+  arrange(date) %>%
+  mutate(cumulconfirmed = cumsum(confirmed))%>%
+  mutate(growth = (confirmed/cumulconfirmed)*100)%>%
+  mutate(cases.per.test = confirmed/tested) %>%
+  filter(growth < 100)
+
+
+plot(data.aut$date, log(data.aut$confirmed/data.aut$tested),pch=3,xlab = "Date"
+     ,ylab = "log of cases per test in Austra", main = "Austria")
+     
+     
+
+# south africa
+data.zaf = data %>%
+filter(Code == "ZAF") %>%
+  select(date, confirmed, tested)
+
+
+plot(data.zaf$date, log(data.zaf$confirmed/data.zaf$tested),pch=3, xlab = "Date",
+     ylab = "log of cases per test in South Africa", main = "South Africa")
+```
+
+```{r 2}
+
+ggplotRegression <- function(dat, xvar, yvar, plotname){
+  
+  require(ggplot2)
+  
+  fit <- lm(yvar~xvar, dat)
+  
+  plotname<- qplot(ggplot(fit$model, aes_string(x = names(fit$model)[2], y = names(fit$model)[1])) + 
+    geom_point() +
+    stat_smooth(method = "lm", col = "red") +
+    xlab("cases/test")+
+    ylab("growth percentage")+
+    labs(title = paste("R^2 = ",signif(summary(fit)$adj.r.squared, 5),
+                       "y Intercept =",signif(fit$coef[[1]],5 ),
+                       " Slope =",signif(fit$coef[[2]], 5),
+                       " P value =",signif(summary(fit)$coef[2,4], 5))))
+}
+par(mfrow=c(2,2))
+
+data.aut.new = data.aut %>%
+  filter(date > "2020-04-02")
+
+aut.fit <- lm(data.aut.new$growth ~ data.aut.new$cases.per.test)
+
+plot(data.aut$date, data.aut$confirmed, main ="confirmed cases by days after peak", xlab = "days", ylab= "confirmed daily")
+abline(v = as.Date("2020-04-02"))
+plot(data.aut.new$date, data.aut.new$confirmed, main ="confirmed cases by days after peak", xlab = "days", ylab= "confirmed daily")
+
+
+
+growth.linfit <- lm(data.aut.new$growth ~ data.aut.new$cases.per.test) 
+
+data.kor.new = data.kor %>%
+  filter(date > "2020-04-02")
+plot(data.kor$date, data.kor$confirmed, main ="confirmed cases by days after peak", xlab = "days", ylab= "confirmed daily")
+abline(v = as.Date("2020-03-05"))
+plot(data.kor.new$date, data.kor.new$confirmed, main ="confirmed cases by days after peak", xlab = "days", ylab= "confirmed daily")
+
+
+
+
+
+
+
+ggplotRegression(data.kor.new, data.kor.new$cases.per.test , data.kor.new$growth, plot1)
+plot1 <-ggplotRegression(data.aut.new, data.aut.new$cases.per.test , data.aut.new$growth, plot2)
+plot1 = plot1$mapping
+grid.arrange(plot1,ncol=2)
+
+growth.linfit <- lm(data.kor.new$growth ~ data.kor.new$cases.per.test) 
+
+```
+ggplot(data.kor, mapping = aes(log(cases.per.test), log(growth)))+
+  geom_point()+
+  geom_smooth(method = lm)
+
+
+ggplot(data.aut, mapping = aes(log(cases.per.test), log(growth)))+
+  geom_point()+
+  geom_smooth(method = lm)
+data.aut = na.omit(data.aut)
+
+``` {r exp}
+
+
+par(mfrow=c(2,2))
+
+
+plot(data.ita$date, data.ita$confirmed, main ="confirmed cases by days ", xlab = "date", ylab= "confirmed daily")
+abline(v = as.Date("2020-03-23"))
+
+ita = data.ita %>%
+  filter(date < "2020-03-23")
+dates <- (seq(0,29, 1))
+expfit <- lm(log(ita$confirmed) ~ ita$date)
+#exp.model <- exp(predict)
+
+tests.fit <- lm(data.ita$tested ~ data.ita$date)
+confirmed.linfit <- lm(data.ita$confirmed ~ data.ita$date)
+
+
+
+plot(data.ita$date, data.ita$tested, main = "tests per day", xlab = "date", ylab ="tests")
+abline(tests.fit)
+plot(ita$date,ita$confirmed, main ="confirmed cases during exponential growth", xlab = "date", ylab= "confirmed daily")
+abline(confirmed.linfit)
+
+summary(tests.fit)
+summary(confirmed.linfit)
+ita.new = ita %>%
+  mutate(date = as.numeric(date)-18316)
+ita.new = na.omit(ita.new)
+# Select an approximate $\theta$, since theta must be lower than min(y), and greater than zero
+theta.0 = 10
+
+# Estimate the rest parameters using a linear model
+model.0 <- lm(log(ita.new$confirmed - theta.0) ~ ita.new$date, data=ita.new)  
+alpha.0 <- exp(coef(model.0)[1])
+beta.0 <- coef(model.0)[2]
+
+# Starting parameters
+start <- list(alpha = alpha.0, beta = beta.0, theta = theta.0)
+start
+
+model <- nls(confirmed ~ alpha * exp(beta *date) + theta , data = ita.new, start = start)
+
+# Plot fitted curve
+plot(ita.new$date, ita.new$confirmed, main ="confirmed cases during exponential growth", xlab = "days", ylab= "confirmed daily")
+lines(ita.new$date, predict(model, list(x = ita.new$date)), col = 'red', lwd = 3)
+
+```
+``` {r expfit}
+ita.new = ita %>%
+  mutate(date = as.numeric(date)-18316)
+ita.new = na.omit(ita.new)
+# Select an approximate $\theta$, since theta must be lower than min(y), and greater than zero
+theta.0 = 10
+
+# Estimate the rest parameters using a linear model
+model.0 <- lm(log(ita.new$confirmed - theta.0) ~ ita.new$date, data=ita.new)  
+alpha.0 <- exp(coef(model.0)[1])
+beta.0 <- coef(model.0)[2]
+
+# Starting parameters
+start <- list(alpha = alpha.0, beta = beta.0, theta = theta.0)
+start
+
+confirmed.expfit <- nls(confirmed ~ alpha * exp(beta *date) + theta , data = ita.new, start = start)
+
+# Plot fitted curve
+plot(ita.new$date, ita.new$confirmed, main ="confirmed cases by days during exponential growth", xlab = "days", ylab= "confirmed daily")
+lines(ita.new$date, predict(model, list(x = ita.new$date)), col = 'red', lwd = 3)
+summary(model)
+cor(ita.new$confirmed,predict(confirmed.expfit))
+
+
+
+```
+
